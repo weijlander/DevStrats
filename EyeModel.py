@@ -48,8 +48,8 @@ class EyeModel():
             t = []
             h = []
             for i in  range(3):
-                t = np.append(t, [st[i][j]*ker[i][j] for j in range(len(ker))])
-                h = np.append(t, [sh[i][j]*ker[i][j] for j in range(len(ker))])
+                t = np.append(t, [st[i][j][0]*ker[i][j] for j in range(len(ker))])
+                h = np.append(t, [sh[i][j][0]*ker[i][j] for j in range(len(ker))])
             vision = (t,h)
         except:
             st = space[0:3][:]
@@ -57,6 +57,6 @@ class EyeModel():
             # get the overlap between the objects and visual fixation kernel
             t = []
             for i in  range(3):
-                t = np.append(t, [st[i][j]*ker[i][j] for j in range(len(ker))])
+                t = np.append(t, [st[i][j][0]*ker[i][j] for j in range(len(ker))])
             vision = t
         return vision

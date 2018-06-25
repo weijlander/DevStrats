@@ -30,3 +30,4 @@ class Infant():
             (mus,coac) = self.eGen.predict(vis,space)
             dir = self.eyes.move(mus,coac)
             vis = self.eyes.process_inputs(dir,space)
+        return vis

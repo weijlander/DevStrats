@@ -6,9 +6,11 @@ Created on Fri Jun 22 16:04:34 2018
 """
 
 import numpy as np
+import scipy.stats as stats
 import math
 from ArmModel import ArmModel
 from EyeModel import EyeModel
+from GenModel import GenModel
 from t_distr import t_distr
 
 class Infant():
@@ -19,15 +21,19 @@ class Infant():
         self.el = [[-45,45],[5,50],[-45,45]]
         self.rArm = ArmModel(limits=self.al)
         self.eyes = EyeModel(limits=self.el)
-        self.aGen = "TODO: GENERATIVE MDOEL FOR ARM"
-        self.eGen = "TODO: GENERATIVE MODEL FOR EYES"
+        self.aGen = GenModel("armnetworkpath")
+        self.eGen = GenModel("eyenetworkpath")
         self.drange = drange
+        self.cert = 0.95
         
     def fixate(self,target):
         space = t_distr(target,self.drange)
         vis = self.eyes.process_inputs(self.eyes.dir,space)
         for it in range(10):
-            (mus,coac) = self.eGen.predict(vis,space)
+            if stats.entropy(vis)>(self.cert*stats.entropy(np.ndarray.tolist(np.ones(100)))):
+                (mus,coac) = self.eGen.random(space)
+            else:
+                (mus,coac) = self.eGen.predict(vis,space)
             dir = self.eyes.move(mus,coac)
             vis = self.eyes.process_inputs(dir,space)
         return vis

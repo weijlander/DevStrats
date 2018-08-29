@@ -9,7 +9,7 @@ from move_arm import move_arm
 from cost_f import cost_f
 
 class ArmModel():
-    def __init__(self,lengths=[[0,0,10],[0,0,-20]],limits=[[-10,130],[-10,100],[-90,90],[0,140]]):
+    def __init__(self,lengths=[[0,0,10],[0,0,-20]],limits=[[-20,130],[-20,70],[-70,60],[0,140]]):
         self.arm = lengths
         self.limits = limits
         

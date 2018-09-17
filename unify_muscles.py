@@ -8,6 +8,10 @@ import random as r
 import math
 
 def unify_muscles(ag,ant,coac):
+    '''
+    ag, ant:    float, indicating muscle activities for opposing muscles
+    coac:       float, coactivation coefficient
+    '''
     R = (r.random()-0.5)/20
     rc = R/math.sqrt(coac)
     a = ag-ant*coac

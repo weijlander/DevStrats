@@ -9,6 +9,11 @@ import numpy as np
 import math
 
 def  homog_transform(x,y,z,tx,ty,tz,dx,dy,dz):
+    '''
+    x,y,z:      float, denoting x, y and z positions within a space
+    tx,ty,tz:   float, translation distances for x, y and z axes respectively  
+    dx,dy,dz:   float (-180:180), degrees of rotation for x, y and z axes respectively
+    '''
     T = [1,0,0,tx,0,1,0,ty,0,0,1,tz,0,0,0,1]
     Rx = [1,0,0,0,0,math.cos(math.radians(dx)),-math.sin(math.radians(dx)),0,0,math.sin(math.radians(dx)),math.cos(math.radians(dx)),0,0,0,0,1]
     Ry = [math.cos(math.radians(dy)), 0, math.sin(math.radians(dy)), 0, 0, 1, 0, 0, -math.sin(math.radians(dy)), 0, math.cos(math.radians(dy)), 0, 0, 0, 0, 1]

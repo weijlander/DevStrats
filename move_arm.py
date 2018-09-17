@@ -10,6 +10,18 @@ from homog_transform import homog_transform
 import numpy as np
 
 def move_arm(arm,muscles,limits,coac):
+    '''
+    arm:
+        list[segments] containing segments:
+            list[float] containing 3 floats indicating the endpoint for a segment
+    muscles:
+        list[floats] containing 8 muscle activations
+    limits:
+        list[range] containing 4 rotation ranges for each DOF:
+            list[float] containing the min and max rotation value for that DOF
+    coac:
+        float (0:1) coactivation coefficient
+    '''
     [l1,l2] = arm
     
     # Determine Rotation matrices for both arm segments

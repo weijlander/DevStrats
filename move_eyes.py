@@ -9,6 +9,17 @@ from homog_transform import homog_transform
 from unify_muscles import unify_muscles
 
 def move_eyes(vis,muscles,limits,coac):
+    '''
+    vis:
+        list[float] containing 3 floats indicating the current focal point in x,y,z respectively
+    muscles:
+        list[floats] containing 5 muscle activations
+    limits:
+        list[range] containing 3 rotation ranges for each DOF:
+            list[float] containing the min and max rotation value for that DOF
+    coac:
+        float (0:1) coactivation coefficient
+    '''
     # turns the eye around the x- and z-axes (upward and sideward respectively)
     agx = max(muscles[:2])
     antx = min(muscles[:2])

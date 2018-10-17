@@ -11,16 +11,18 @@ import numpy as np
 
 def move_arm(arm,muscles,limits,coac):
     '''
-    arm:
-        list[segments] containing segments:
-            list[float] containing 3 floats indicating the endpoint for a segment
-    muscles:
-        list[floats] containing 8 muscle activations
-    limits:
-        list[range] containing 4 rotation ranges for each DOF:
-            list[float] containing the min and max rotation value for that DOF
-    coac:
-        float (0:1) coactivation coefficient
+    @param arm: list of 3D end-points for each segment of the arm
+    @type arm: list[segments]
+        @type segments: list[floats] 3 end-effector float positions
+    @param muscles: list containing 8 muscle activations
+    @type muscles: list[float (0:1)]
+    @param limits: rotation limits for all the joint axes
+    @type limits: list[range] containing 4 rotation ranges for each DOF
+        @typee range: list[float] containing the min and max rotation value for that DOF
+    @param coac: coactivation coefficient
+    @type coac: float (0:1) 
+    @return endpoints for the upper arm and forearm
+    @type return tuple(list)
     '''
     [l1,l2] = arm
     
@@ -44,3 +46,28 @@ def move_arm(arm,muscles,limits,coac):
     e2 = homog_transform(d2[0],d2[1],d2[2],e1[0],e1[1],e1[2],0,0,rz1) # determine the new forearm position based on upper arm translation and rotation
     e3 = homog_transform(e2[0],e2[1],e2[2],0,0,0,rx2,0,0) # perform forearm rotation
     return (e1,e3)
+
+def inverse_approx(tar,arm,angles=[[0,0,0],[0,0,0]],h=0.001,eps=0.8,maxit=30):
+    '''
+    @param tar: target position in 3D
+    @type tar: list(x,y,z) where x,y,z,=float
+    @param arm: end-effector positions of the segments of the arm
+    @type arm: [[x,y,z],[x,y,z]]
+    @param angles: starting angles for both joints
+    @type angles: list(dsx,dsy,dsz,dex)Assumes start position arm is at joint angles 0 degrees.
+    @param eps: epsilon value of desired minimum distance
+    @type eps: float
+    @return O: orientations for both joints
+    @type O: [[x,y,z],[x,y,z]]
+    '''
+    it = 0
+    while np.linalg.norm(np.subtract(tar,arm[-1]))>eps and it < maxit:
+        dO=getDelta()
+        angles+=list(np.multiply(dO,h))
+        it+=1
+        arm='bla' # need to re-calculate arm as in lines 42-47. Make this into a function that takes arm and rotations, and returns arm.
+    return angles
+
+def getDelta(tar,):
+    
+    return dO

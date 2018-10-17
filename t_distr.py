@@ -18,7 +18,6 @@ def t_distr(targets,drange,type="uniform"):
     
     stepsize =int( len(drange[1])/(drange[0][1]-drange[0][0]))
     tar = []
-    print(targets)
     for t in targets:
         centre,width = t
         if type=="uniform":

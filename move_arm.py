@@ -24,8 +24,6 @@ def move_arm(arm,muscles,limits,coac):
     @return endpoints for the upper arm and forearm
     @type return tuple(list)
     '''
-    [l1,l2] = arm
-    
     # Determine Rotation matrices for both arm segments
     x1 = unify_muscles(muscles[0],muscles[1],coac)
     y1 = unify_muscles(muscles[2],muscles[3],coac)
@@ -37,20 +35,49 @@ def move_arm(arm,muscles,limits,coac):
     rz1 = limits[2][0]+(z1*(limits[2][1]-limits[2][0]))
     rx2 = limits[3][0]+(x2*(limits[3][1]-limits[3][0]))
     
+    return calc_arm([rx1,ry1,rz1],[rx2,list(np.zeros(np.shape(rx2))),list(np.zeros(np.shape(rx2)))])
+
+def calc_arm(arm,shoulder,elbow):
+    '''
+    Calculate the new end-effectors for the given arm segments given a rotation for both joints
+    @param shoulder: rotation vector for the shoulder
+    @type shoulder: [rx,ry,rz]
+    @param elbow: rotation vector for the elbow. In reality, only the first value is used since the elbow has only the x-axis DOF
+    @type elbow: [rx,ry,rz]
+    @param arm: end-effector positions of the segments of the arm
+    @type arm: [[x,y,z],[x,y,z]]
+    '''
     # determine positional relationships between segments, needed for correctly
     # calculating forearm movement
+    [l1,l2] = arm
     d2 = np.subtract(l2,l1)
+    
+    rx1,ry1,rz1 = shoulder
+    rx2,ry2,rz2 = elbow
     
     # calculate end-effector position
     e1 = homog_transform(l1[0],l1[1],l1[2],0,0,0,rx1,ry1,rz1) # Perform the rotation to the upper arm
-    e2 = homog_transform(d2[0],d2[1],d2[2],e1[0],e1[1],e1[2],0,0,rz1) # determine the new forearm position based on upper arm translation and rotation
-    e3 = homog_transform(e2[0],e2[1],e2[2],0,0,0,rx2,0,0) # perform forearm rotation
-    return (e1,e3)
+    #e2 = homog_transform(d2[0],d2[1],d2[2],e1[0],e1[1],e1[2],0,0,rz1) # determine the new forearm position based on upper arm translation and rotation
+    e3 = homog_transform(d2[0],d2[1],d2[2],0,0,0,rx1*rx2,ry1,rz1) # perform forearm rotation
+    return [e1,np.add(e3,e1)]
 
-def inverse_approx(tar,arm,angles=[[0,0,0],[0,0,0]],h=0.001,eps=0.8,maxit=30):
+def clamp_degrees(angles,limits=[[-20,130],[-20,70],[-70,60],[0,140],[0,0],[0,0]]):
+    i=0
+    clamped_angles=list()
+    for joint in angles:
+        n_angles=[]
+        for angle in joint:
+            clamped_angle=max(angle,limits[i][0])
+            clamped_angle=min(clamped_angle,limits[i][1])
+            n_angles.append(clamped_angle)
+            i+=1
+        clamped_angles.append(n_angles)
+    return clamped_angles
+
+def inverse_approx(tar,arm,angles=[[1,1,1],[1,0,0]],h=0.1,eps=1,maxit=100):
     '''
     @param tar: target position in 3D
-    @type tar: list(x,y,z) where x,y,z,=float
+    @type tar: [x,y,z]
     @param arm: end-effector positions of the segments of the arm
     @type arm: [[x,y,z],[x,y,z]]
     @param angles: starting angles for both joints
@@ -61,13 +88,50 @@ def inverse_approx(tar,arm,angles=[[0,0,0],[0,0,0]],h=0.001,eps=0.8,maxit=30):
     @type O: [[x,y,z],[x,y,z]]
     '''
     it = 0
-    while np.linalg.norm(np.subtract(tar,arm[-1]))>eps and it < maxit:
-        dO=getDelta()
-        angles+=list(np.multiply(dO,h))
+    diff=np.linalg.norm(np.subtract(tar,arm[-1][:3]))
+    best = ([],50.0)
+    while diff>eps and it < maxit:
+        # get the current iteration's change in joint angles
+        dO=get_delta(tar,[l[:3] for l in arm],angles)
+        # change the known angles by adding the weighted change in angles
+        angles=clamp_degrees(list(np.add(angles,np.multiply(dO,h))))
+        # recalculate the position of the arm after the angle change is applied
+        arm=calc_arm(arm,angles[0],angles[1])
         it+=1
-        arm='bla' # need to re-calculate arm as in lines 42-47. Make this into a function that takes arm and rotations, and returns arm.
-    return angles
+        diff = np.linalg.norm(np.subtract(tar,arm[-1][:3]))
+        best=(angles,diff) if diff<best[1] else best
+    return round_angles(best[0]),best[1]
 
-def getDelta(tar,):
-    
+def get_delta(tar,arm,angles):
+    '''
+    @param tar: target position in 3d
+    @type tar: [x,y,z]
+    @param arm: end-effector positions o the segments of the arm
+    @type arm: [[x,y,z],[x,y,z]]
+    @param angles: the angles in 3d for both joints. Only used for calculatng the jacobian
+    @type angles: [[dxsh,dysh,dzsh],[dxel,dyel,dzel]]
+    '''
+    jac_t = get_transJac(tar,arm,angles)
+    diff = list(np.subtract(tar,arm))
+    dO = list(np.multiply(jac_t,diff))
     return dO
+
+def get_transJac(tar,arm,angles):
+    l1,l2=arm
+    shoulder,elbow=angles
+    jac_t=list()
+    
+    #calculate the jacobian entries for both joints
+    j_l1=list(np.cross(shoulder,np.subtract(l2,[0,0,0])))
+    j_l2=list(np.cross(elbow,np.subtract(l2,l1)))
+    
+    jac_t.append(j_l1)
+    jac_t.append(j_l2)
+    return jac_t
+
+def round_angles(angles):
+    fixed = np.ndarray.tolist(np.zeros(np.shape(angles)))
+    for row in range(len(angles)):
+        for angle in range(len(angles[angles==row])):
+            fixed[row][angle] = (angles[row][angle]%360.0) if angles[row][angle]>0.0 else -(abs(angles[row][angle])%360.0)
+    return fixed

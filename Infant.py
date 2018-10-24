@@ -21,7 +21,7 @@ class Infant():
         '''
         self.am = [0,0,0,0,0,0,0,0]
         self.em = [0,0,0,0,0]
-        self.al = [[-10,130],[-10,100],[-90,90]]
+        self.al = [[-20,130],[-20,70],[-70,60],[0,140]]
         self.el = [[-45,45],[5,50],[-45,45]]
         self.rArm = ArmModel(limits=self.al)
         self.eyes = EyeModel(limits=self.el)
@@ -46,3 +46,6 @@ class Infant():
             dir = self.eyes.move(mus,coac)
             vis = self.eyes.process_inputs(dir,space)
         return vis
+    
+    def reach(self,target):
+        pass

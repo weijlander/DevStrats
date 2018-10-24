@@ -7,13 +7,14 @@ Created on Fri Jun 22 17:14:49 2018
 
 import numpy as np
 from scipy.stats import norm
+from heapq import *
 
 def t_distr(targets,drange,type="uniform"):
     '''  
     target: tuple ([centre_d],width) indicating centre positions for dimensions d and the overall width for the target
     drange: tuple ([min,max],[positions]) min and max position range, and the steps between those. 
             These indicate how each dimension of the space cube looks
-    type:   string, indicating type, "uniform", "gaussian" or "sampled".
+    type:   string, indicating type, "uniform", "gaussian", "sampled_gauss" or "sampled_uni".
     '''
     
     stepsize =int( len(drange[1])/(drange[0][1]-drange[0][0]))
@@ -43,12 +44,37 @@ def t_distr(targets,drange,type="uniform"):
                 # put g into tar
                 tar.append(g)
                 
-        elif type=="sampled":
-            pass
+        elif type=="sampled_gauss":
+            tdist = t_distr([t],drange,type="gaussian")
+            for tdim in tdist:
+                tdim = [float(i)/sum(tdim) for i in tdim]
+                dim = list(drange[1])
+                cur = np.ndarray.tolist(np.zeros(len(drange[1])))
+                sample = np.random.choice(dim,size=len(drange[1]),p=tdim)
+                for each in sample:
+                    cur[dim.index(each)]+=1/len(sample)
+                tar.append(cur)
+                
+        elif type=="sampled_uni":
+            tdist = t_distr([t],drange,type="uniform")
+            for tdim in tdist:
+                tdim = [float(i)/sum(tdim) for i in tdim]
+                dim = list(drange[1])
+                cur = np.ndarray.tolist(np.zeros(len(drange[1])))
+                sample = np.random.choice(dim,size=len(drange[1]),p=tdim)
+                for each in sample:
+                    cur[dim.index(each)]+=1/len(sample)
+                tar.append(cur)
         else:
             tar = np.ndarray.tolist(np.zeros(len(drange[1]))+1/len(drange[1]))
         
     return tar
+
+def heapsort(iterable):
+    h=[]
+    for value in iterable:
+        heappush(h,value)
+    return [heappop(h) for i in range(len(h))]
 
 def det_target(drange,stepsize,centre,width,it):
     # Determine index positions for the target centre, and its left/right borders

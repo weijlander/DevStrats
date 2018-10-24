@@ -37,7 +37,7 @@ class ArmNet():
         return world
     
     def update(self,error,obs):
-        # Update the internal model (this one is still unclear)
+        # Update the internal model using Bayesian updating on the distributions of ag, ant and cc
         pass
         
     def imaging(self,nodes):
@@ -46,7 +46,7 @@ class ArmNet():
         pass
     
     def calc_nodes(self,pos):
-        # Calculate values of axes and leaf nodes from the given pos- this is where inverse kinematic solutions should be found in a tractable way
+        # Calculate values of axes and leaf nodes from the given pos
         pass
     
     def do(self,world,label,val):

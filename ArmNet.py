@@ -15,25 +15,24 @@ from ppt.PPToolbox import PPToolbox
 import numpy as np
 from nodes import *
 
-class ArmNet():
-    def __init__(self,name='def'):
+class armNet():
+    def __init__(self,name='def',card=10):
         self.name=name
-        self.posits=[Positional(i) for i in ['X','Y','Z']]
-        self.axes=[Axis(i,self.posits) for i in ['shx','shy','shz','elx']]
+        #self.posits=[Node(i,[]) for i in ['X','Y','Z']]
+        self.axes=[Node(i,[],card=card) for i in ['shx','shy','shz','elx']]
         self.muscles=list()
         for a in self.axes:
-            self.muscles.append(Leaf(a.label+'_ag',[a]))
-            self.muscles.append(Leaf(a.label+'_ant',[a]))
-        self.cc=[Leaf('CC',self.axes)]
-        self.nodes={node.label:node for sublist in [self.posits, self.axes, self.muscles, self.cc] for node in sublist}
+            self.muscles.append(Node(a.label+'_ag',[a],card=card))
+            self.muscles.append(Node(a.label+'_ant',[a],card=card))
+        self.cc=[Node('CC',self.axes,card=card)]
+        self.nodes={node.label:node for sublist in [self.axes, self.muscles, self.cc] for node in sublist}
         
     def predict(self,pos):
         # Make a prediction over muscles and cc given the requested positional X Y Z values
         # @param pos: the position of the target, represented as three probability distributions
         # @type pos: tuple([float][float][float])
-        x,y,z=pos
-        self.nodes["X"],self.nodes["Y"],self.nodes["Z"]=pos
-        world=self.imaging(self.nodes)
+        self.nodes["X"].value,self.nodes["Y"].value,self.nodes["Z"].value=pos
+        
         return world
     
     def update(self,error,obs):
@@ -52,11 +51,11 @@ class ArmNet():
     def do(self,world,label,val):
         # set the value of the labelled node in the given world to value val
         world[label].value = val
-    
-    def set(self,label,val):
-        # set the internal value of the labelled node to val
-        self.nodes[label].value=val
         
     def reset(self):
         for node in self.nodes:
             node.value=0.0
+    
+    def var_elim(self,goal,labels):
+        
+        return marg

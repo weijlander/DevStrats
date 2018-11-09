@@ -13,6 +13,6 @@ def unify_muscles(ag,ant,coac):
     coac:       float, coactivation coefficient
     '''
     R = (r.random()-0.5)/20
-    rc = R/math.sqrt(coac)
+    rc = R/math.sqrt(coac+0.001)
     a = ag-ant*coac
     return a+a*rc

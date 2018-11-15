@@ -69,21 +69,11 @@ class Infant():
                 nodes[i]=b
             self.kbase.append(nodes)
             self.update_hparams([n for n in self.anet.nodes],nodes)
+        for n in self.anet.nodes:
+            self.anet.nodes[n].update_pd()
     
     def marg_distr(self,target,conditions):
         # use factor multiplication and summing out (fixed order VE) to marginalize a posterior distribution
-        pass
-    
-    def mult_factors(self,f1,f2):
-        '''
-        multiply the two factors to make one factor composed of both variables
-        '''
-        pass
-    
-    def sum_out(self,factor,target):
-        '''
-        Sum out the non-target variable from the given composite factor and return the (semi-)marginalized target factor
-        '''
         pass
     
     def update_hparams(self,labels,values):
@@ -95,14 +85,3 @@ class Infant():
         '''
         for n in self.anet.nodes:
             self.anet.nodes[n].update_hp(labels,values)
-    
-    def bayes_rule(self,prior,cond,hyp):
-        '''
-        calculate P(A|B) with given probabilities P(A), P(B|A), and P(B)
-        @param prior: P(A)
-        @param cond: P(B|A)
-        @param hyp: P(B)
-        @type prior, cond, hyp: float 0.0 through 1.0
-        '''
-        post=cond*prior/hyp
-        return post

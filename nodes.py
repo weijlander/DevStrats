@@ -19,38 +19,63 @@ class Node():
             self.values.append((1/(card-1))*step)
             self.pdistr.append(1/card)
         if self.parents:
-            self.hparams=[self.con_hparam(p) for p in self.parents]
+            self.hparam=self.con_hparam(self.parents)
         else:
-            self.hparams=[self.con_hparam()]
+            self.hparam=self.con_hparam()
         
-    def con_hparam(self,parent=None):
-        if parent:
-            return (self.values, parent.values, parent.label, np.ndarray.tolist(np.zeros((len(self.values),len(parent.values)))))
+    def con_hparam(self,parents=None):
+        '''
+        construct the hyperparameter of the node for a given parent, or construct a hyperprior if no parent is given
+        @param parent: the parent node with which to construct a hyperparameter
+        @type parent: Node
+        '''
+        if parents:
+            shape = [len(self.values)]
+            for p in parents:
+                shape.append(len(p.values))
+            shape=tuple(shape)
+            hparam = (self.values, [p.values for p in parents], [self.label]+[p.label for p in parents], np.ndarray.tolist(np.zeros(shape)))
         else:
-            return (self.values, [], '', np.ndarray.tolist(np.zeros(len(self.values))))
+            hparam = (self.values, [], [], np.ndarray.tolist(np.zeros(len(self.values))))
+        return hparam
     
     def update_hp(self,labels,values):
+        '''
+        update the node's hyperparameters given a new observation
+        @param labels: the labels for the nodes in the observation
+        @type labels: list[String]
+        @param values: the values for the nodes in the observation
+        @type values: list[float]
+        '''
         own_v = values[labels.index(self.label)]
         own_b = self.get_bin(own_v)
         ind_s = self.values.index(own_b)
-        for hp in self.hparams:
-            if self.parents:
-                for p in self.parents:
-                    par_v = values[labels.index(p.label)]
-                    par_b = p.get_bin(par_v)
-                    ind_p = p.values.index(par_b)
-                    if hp[2] == p.label:
-                        hp[3][ind_s][ind_p]+=1
-            else:
-                hp[3][ind_s]+=1
-                    
+        if self.parents:
+            indices=[ind_s]
+            for p in self.parents:
+                par_v = values[labels.index(p.label)]
+                par_b = p.get_bin(par_v)
+                ind_p = p.values.index(par_b)
+                indices.append(ind_p)
+            self.add_to_index(indices)
+        else:
+            self.hparam[3][ind_s]+=1
+    
     def get_p(self,value):
-    # get the probability from the bin that the given value resides in
+        '''
+        get the probability from the bin that the given value resides in
+        @param value: the value of interest
+        @type value: float
+        '''
         b=self.get_bin(value)
         return b[1]
-    
+        
     def get_bin(self,value):
+        '''
         # returns the bin that the given value resides in
+        @param value: the value of interest
+        @type value: float
+        '''
         try:
             for val in range(len(self.pdistr)):
                 if value>=self.values[val] and value < self.values[val+1]:
@@ -64,80 +89,121 @@ class Node():
                     return self.values[0]
         except:
             return self.values[-1]
-        
-##############################
-# LEGACY CODE BELOW
-##############################
+ 
+    def collapse_hp(self,queries):
+        '''
+        Collapse the hyperparameter to form a joint occurrence distribution that contains only the queried variables.
+        NOTE: THIS IS NOT A PROBABILITY DISTRIBUTION. TO MAKE A JPD FROM THIS, CALL THE GENERIC CLASS METHOD hp_to_pd
+        @param queries: the queried variable labels. these must be labels that are used by the node since it doesn't check for that
+        @type queries: list[string]
+        '''
+        labels=self.hparam[2]
+        axes=tuple([self.hparam[2].index(i) for i in labels if i not in queries])
+        return np.sum(self.hparam[3],axis=axes)
+    
+    def hp_to_pd(self,pdistr):
+        return np.ndarray.tolist(np.divide(pdistr,sum(pdistr)))
 
-#class Positional():
-#    # Root nodes encodin the position of the target
-#    def __init__(self,label,value=0.0):
-#        self.label=label
-#        self.value=value
-#
-#class Axis():
-#    # The intermediate variables encoding activation of an individual axis
-#    def __init__(self,label,parents, value=0.0, card=10):
-#        self.label=label
-#        self.parents=parents
-#        self.value=value
-#        self.values=[]
-#        self.pdistr=[]
-#        for step in range(card):
-#            self.values.append((1/(card-1))*step)
-#            self.pdistr.append(1/card)
-#            
-#    def get_p(self,value):
-#    # get the probability from the bin that the given value resides in
-#        b=self.get_bin(value)
-#        return b[1]
-#    
-#    def get_bin(self,value):
-#        # returns the bin that the given value resides in
-#        try:
-#            for val in range(len(self.pdistr)):
-#                if value>=self.values[val] and value < self.values[val+1]:
-#                    # determine the median between two bin values and check where the given value sits
-#                    med=(self.values[val]+self.values[val+1])/2
-#                    if value<=med:
-#                        return self.pdistr[val]
-#                    else:
-#                        return self.pdistr[val+1]
-#                elif value<self.values[val]:
-#                    return self.pdistr[0]
-#        except:
-#            return self.pdistr[-1]
-#        
-#class Leaf():
-#    # Prediction nodes encoding muscle activation or coactivation coefficient
-#    def __init__(self,label,parents,value=0.0,card=10):
-#        self.label=label
-#        self.value=value
-#        self.parents=parents
-#        self.values=[]
-#        self.pdistr=[]
-#        for step in range(card):
-#            self.values.append((1/(card-1))*step)
-#            self.pdistr.append(1/card)
-#            
-#    def get_p(self,value):
-#    # get the probability from the bin that the given value resides in
-#        b=self.get_bin(value)
-#        return b[1]
-#    
-#    def get_bin(self,value):
-#        # returns the bin that the given value resides in
-#        try:
-#            for val in range(len(self.pdistr)):
-#                if value>=self.values[val] and value < self.values[val+1]:
-#                    # determine the median between two bin values and check where the given value sits
-#                    med=(self.values[val]+self.values[val+1])/2
-#                    if value<=med:
-#                        return self.pdistr[val]
-#                    else:
-#                        return self.pdistr[val+1]
-#                elif value<self.values[val]:
-#                    return self.pdistr[0]
-#        except:
-#            return self.pdistr[-1]
-#   
+###############################################################################
+####       SUBCLASSES
+###############################################################################
+
+class Axis(Node):
+    def update_hp(self,labels,values):
+        '''
+        update the node's hyperparameters given a new observation
+        @param labels: the labels for the nodes in the observation
+        @type labels: list[String]
+        @param values: the values for the nodes in the observation
+        @type values: list[float]
+        '''
+        own_v = values[labels.index(self.label)]
+        own_b = self.get_bin(own_v)
+        ind_s = self.values.index(own_b)
+        self.hparam[3][ind_s]+=1
+        
+    def update_pd(self):
+        '''
+        update the node's pdistr to reflect the new values in its hyperparameters
+        '''
+        counts_per_value = self.hparam[-1]
+        new_pdistr = np.ndarray.tolist(np.divide(counts_per_value,sum(counts_per_value)))
+        self.pdistr = new_pdistr
+
+    
+class Coeff(Node):
+    
+    def update_hp(self,labels,values):
+        '''
+        update the node's hyperparameters given a new observation
+        @param labels: the labels for the nodes in the observation
+        @type labels: list[String]
+        @param values: the values for the nodes in the observation
+        @type values: list[float]
+        '''
+        own_v = values[labels.index(self.label)]
+        own_b = self.get_bin(own_v)
+        ind_s = self.values.index(own_b)
+        ind=[ind_s]
+        for p in self.parents:
+            par_v = values[labels.index(p.label)]
+            par_b = p.get_bin(par_v)
+            ind_p = p.values.index(par_b)
+            ind.append(ind_p)
+        self.hparam[3][ind[0]][ind[1]][ind[2]][ind[3]][ind[4]]+=1
+        
+    def update_pd(self):
+        '''
+        update the node's pdistr to reflect the new values in its hyperparameters
+        '''
+        #counts_per_value = [sum(self.hparam[3][-1][-1][-1][i]) for i in range(len(self.values))]
+        counts_per_value = self.collapse_hp([self.label])
+        new_pdistr = self.hp_to_pd(counts_per_value)
+        self.pdistr = new_pdistr
+        
+    def get_cpt(self,parent_label):
+        '''
+        Get the conditional probability table for this node given a parent label
+        '''
+        parent_index = self.hparam[2].index(parent_label)
+        for i in [1,2,3]:
+            cpt = np.ndarray.tolist(np.divide(hp[-1],np.sum(hp[-1])))
+            return (hp[0],hp[1],hp[2],cpt)
+
+class Musc(Node):
+
+    def update_hp(self,labels,values):
+        '''
+        update the node's hyperparameters given a new observation
+        @param labels: the labels for the nodes in the observation
+        @type labels: list[String]
+        @param values: the values for the nodes in the observation
+        @type values: list[float]
+        '''
+        own_v = values[labels.index(self.label)]
+        own_b = self.get_bin(own_v)
+        ind_s = self.values.index(own_b)
+        ind=[ind_s]
+        for p in self.parents:
+            par_v = values[labels.index(p.label)]
+            par_b = p.get_bin(par_v)
+            ind_p = p.values.index(par_b)
+            ind.append(ind_p)
+        self.hparam[3][ind[0]][ind[1]]+=1
+        
+    def update_pd(self):
+        '''
+        update the node's pdistr to reflect the new values in its hyperparameters
+        '''
+        counts_per_value = self.collapse_hp([self.label])
+        new_pdistr = self.hp_to_pd(counts_per_value)
+        self.pdistr = new_pdistr
+                    
+    def get_cpt(self,parent_label):
+        '''
+        Get the conditional probability table for this node given a parent label
+        '''
+        parent_index = self.hparam[2].index(parent_label)
+        for i in [1,2,3]:
+            cpt = np.ndarray.tolist(np.divide(hp[-1],np.sum(hp[-1])))
+            return (hp[0],hp[1],hp[2],cpt)

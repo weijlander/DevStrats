@@ -109,7 +109,7 @@ class Node():
 ###############################################################################
 
 class Axis(Node):
-    def update_hp(self,labels,values):
+    def update_hp(self,labels,values,nodes):
         '''
         update the node's hyperparameters given a new observation
         @param labels: the labels for the nodes in the observation
@@ -129,11 +129,10 @@ class Axis(Node):
         counts_per_value = self.hparam[-1]
         new_pdistr = np.ndarray.tolist(np.divide(counts_per_value,sum(counts_per_value)))
         self.pdistr = new_pdistr
-
     
 class Coeff(Node):
     
-    def update_hp(self,labels,values):
+    def update_hp(self,labels,values,nodes):
         '''
         update the node's hyperparameters given a new observation
         @param labels: the labels for the nodes in the observation
@@ -161,18 +160,35 @@ class Coeff(Node):
         new_pdistr = self.hp_to_pd(counts_per_value)
         self.pdistr = new_pdistr
         
-    def get_cpt(self,parent_label):
-        '''
-        Get the conditional probability table for this node given a parent label
-        '''
-        parent_index = self.hparam[2].index(parent_label)
-        for i in [1,2,3]:
-            cpt = np.ndarray.tolist(np.divide(hp[-1],np.sum(hp[-1])))
-            return (hp[0],hp[1],hp[2],cpt)
+#    def get_cpt(self,parent_label):
+#        '''
+#        Get the conditional probability table for this node given a parent label
+#        '''
+#        parent_index = self.hparam[2].index(parent_label)
+#        for i in [1,2,3]:
+#            cpt = np.ndarray.tolist(np.divide(hp[-1],np.sum(hp[-1])))
+#            return (hp[0],hp[1],hp[2],cpt)
 
 class Musc(Node):
-
-    def update_hp(self,labels,values):
+    def extend_hp(self,nodes):
+        '''
+        Extend the node's hyperparameter to include values of the parents' other children (causally these are actually the childrens' other parents)
+        @param nodes: all the nodes in the network to search through for shared parentage
+        @type nodes: list[Node]
+        '''
+        for parent in self.parents:
+            for node in nodes:
+                if parent in node.parents and node.label != self.label:
+                    self.hparam[1].append(node.values)
+                    self.hparam[2].append(node.label)
+                    # for some reason the following 3 lines can't be contracted into 1
+                    shape = list(np.shape(self.hparam[3]))
+                    shape.append(10)
+                    shape=tuple(shape)
+                    self.hparam = self.hparam [:3] + tuple([np.ndarray.tolist(np.zeros(shape))])
+                
+    
+    def update_hp(self,labels,values,nodes):
         '''
         update the node's hyperparameters given a new observation
         @param labels: the labels for the nodes in the observation
@@ -184,12 +200,12 @@ class Musc(Node):
         own_b = self.get_bin(own_v)
         ind_s = self.values.index(own_b)
         ind=[ind_s]
-        for p in self.parents:
-            par_v = values[labels.index(p.label)]
-            par_b = p.get_bin(par_v)
-            ind_p = p.values.index(par_b)
+        for p in self.hparam[2]:
+            par_v = values[labels.index(p)]
+            par_b = nodes[p].get_bin(par_v)
+            ind_p = nodes[p].values.index(par_b)
             ind.append(ind_p)
-        self.hparam[3][ind[0]][ind[1]]+=1
+        self.hparam[3][ind[0]][ind[1]][ind[2]][ind[3]]+=1
         
     def update_pd(self):
         '''
@@ -199,11 +215,11 @@ class Musc(Node):
         new_pdistr = self.hp_to_pd(counts_per_value)
         self.pdistr = new_pdistr
                     
-    def get_cpt(self,parent_label):
-        '''
-        Get the conditional probability table for this node given a parent label
-        '''
-        parent_index = self.hparam[2].index(parent_label)
-        for i in [1,2,3]:
-            cpt = np.ndarray.tolist(np.divide(hp[-1],np.sum(hp[-1])))
-            return (hp[0],hp[1],hp[2],cpt)
+#    def get_cpt(self,parent_label):
+#        '''
+#        Get the conditional probability table for this node given a parent label
+#        '''
+#        parent_index = self.hparam[2].index(parent_label)
+#        for i in [1,2,3]:
+#            cpt = np.ndarray.tolist(np.divide(hp[-1],np.sum(hp[-1])))
+#            return (hp[0],hp[1],hp[2],cpt)

@@ -84,4 +84,4 @@ class Infant():
         @type values: float
         '''
         for n in self.anet.nodes:
-            self.anet.nodes[n].update_hp(labels,values)
+            self.anet.nodes[n].update_hp(labels,values,self.anet.nodes)

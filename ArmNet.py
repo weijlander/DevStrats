@@ -26,6 +26,8 @@ class armNet():
             self.muscles.append(Musc(a.label+'_ant',[a],card=card))
         self.cc=[Coeff('CC',self.axes,card=card)]
         self.nodes={node.label:node for sublist in [self.axes, self.muscles, self.cc] for node in sublist}
+        for musc in self.muscles:
+            musc.extend_hp([self.nodes[n] for n in self.nodes])
         
     def predict(self,pos):
         # Make a prediction over muscles and cc given the requested positional X Y Z values

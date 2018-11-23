@@ -12,6 +12,7 @@ class ArmModel():
     def __init__(self,lengths=[[0,0,-10],[0,0,-20]],limits=[[-20,130],[-20,70],[-70,60],[0,140]]):
         self.arm = lengths
         self.limits = limits
+        self.angles = angles
         
     def move(self,muscles,coac):
         cost = cost_f(muscles,coac)

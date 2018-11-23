@@ -29,14 +29,6 @@ class armNet():
         for musc in self.muscles:
             musc.extend_hp([self.nodes[n] for n in self.nodes])
         
-    def predict(self,pos):
-        # Make a prediction over muscles and cc given the requested positional X Y Z values
-        # @param pos: the position of the target, represented as three probability distributions
-        # @type pos: tuple([float][float][float])
-        self.nodes["X"].value,self.nodes["Y"].value,self.nodes["Z"].value=pos
-        
-        return world
-        
     def reset(self):
         for node in self.nodes:
             node.value=0.0

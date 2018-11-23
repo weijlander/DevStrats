@@ -19,7 +19,6 @@ class Infant():
         drange: tuple ([min,max],[positions]) min and max position range, and the steps between those. 
                 These indicate how each dimension of the space cube looks
         '''
-        self.am = [0,0,0,0,0,0,0,0]
         self.al = [[-20,130],[-20,70],[-70,60],[0,140]]
         self.rArm = ArmModel(limits=self.al)
         self.anet = armNet(name=name,card=card)
@@ -27,7 +26,23 @@ class Infant():
         self.kbase = [[self.anet.nodes[n].value for n in self.anet.nodes]]
     
     def reach(self,target):
-        # Do the thesis subject
+        '''
+        @param target: the target position in 3d and its width
+        @type target: tuple(list[x,y,z],float)
+        '''
+        # Determine the target position that the agent sees (this can differ from the actual target centre)
+        target_distr = t_distr(target,self.drange)
+        sampled_points = np.ndarray.tolist(np.amax(target_distr,axis=1))
+        (x,y,z) = target_distr[0].index(sampled_points[0]),target_distr[1].index(sampled_points[1]),target_distr[2].index(sampled_points[2])
+        target_pos = self.drange[1][x],self.drange[1][y],self.drange[1][z]
+        
+        # Determine the values for all the nodes in the agent's arm network by  imaging
+        nodes=self.imaging(target_pos)
+        
+        # Update beliefs in the network
+        self.update_hparams([n for n in self.anet.nodes],nodes)
+        for n in self.anet.nodes:
+            self.anet.nodes[n].update_pd()
         pass
     
     def motor_babbling(self,nb=1000,type='gaussian'):
@@ -72,8 +87,11 @@ class Infant():
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
     
-    def marg_distr(self,target,conditions):
-        # use factor multiplication and summing out (fixed order VE) to marginalize a posterior distribution
+    def imaging(self,target):
+        '''
+        @param target: the target position
+        @type target: list[float]
+        '''
         pass
     
     def update_hparams(self,labels,values):

@@ -9,7 +9,7 @@ import numpy as np
 from scipy.stats import norm
 from heapq import *
 
-def t_distr(targets,drange,type="uniform"):
+def t_distr(targets,drange,type="sampled_gauss"):
     '''  
     target: tuple ([centre_d],width) indicating centre positions for dimensions d and the overall width for the target
     drange: tuple ([min,max],[positions]) min and max position range, and the steps between those. 

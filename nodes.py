@@ -102,7 +102,7 @@ class Node():
         return np.sum(self.hparam[3],axis=axes)
     
     def hp_to_pd(self,pdistr):
-        return np.ndarray.tolist(np.divide(pdistr,sum(pdistr)))
+        return np.ndarray.tolist(np.divide(pdistr,sum(pdistr)+0.01))
 
 ###############################################################################
 ####       SUBCLASSES

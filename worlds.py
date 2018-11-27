@@ -11,7 +11,7 @@ class World:
         self.values=values
         self.known=[]
         self.network=network
-        self.probmass=self.get_probability_mass()
+        self.probmass=self.get_probability_mass(self.labels,self.values)
         self.added_mass=0
         
     def add_mass(self,mass):
@@ -30,16 +30,17 @@ class World:
         @type values: list[float]
         '''
         axis=labels[0]
-        hp=self.network.nodes[axis+'ant'].hparam
-        pd=self.network.nodes[axis+'ant'].hp_to_pd(self.network.nodes[axis+'ag'].collapse_hp(labels))
+        hp=self.network.nodes[axis+'_ant'].hparam
+        pd=self.network.nodes[axis+'_ant'].hp_to_pd(self.network.nodes[axis+'_ag'].collapse_hp(labels))
         ind=[]
         for label,value in zip(labels,values):
-            i=hp[2].index(label)
-            if i>0:
-                j=hp[1][i-1].index(value)
-            else:
-                j=hp[0].index(value)
-            ind.append(j)
+            if label in hp[2]:
+                i=hp[2].index(label)
+                if i>0:
+                    j=hp[1][i-1].index(value)
+                else:
+                    j=hp[0].index(value)
+                ind.append(j)
         return pd[ind[0]][ind[1]][ind[2]][ind[3]]
         
     def get_similarity(self, other):

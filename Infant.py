@@ -7,14 +7,17 @@ Created on Fri Jun 22 16:04:34 2018
 
 import numpy as np
 import scipy.stats as stats
+import itertools
 from ArmModel import ArmModel
 from t_distr import t_distr
 from unify_muscles import unify_muscles
+from worlds import World
 from move_arm import *
 from ArmNet import *
+from tqdm import tqdm
 
 class Infant():
-    def __init__(self, name='Benjamin', drange=([-30,30],np.arange(-30,30.01,0.1)),card=10):
+    def __init__(self, name='Benjamin', drange=([-30,30],np.arange(-30,30.01,0.1)),card=3):
         '''
         drange: tuple ([min,max],[positions]) min and max position range, and the steps between those. 
                 These indicate how each dimension of the space cube looks
@@ -36,8 +39,8 @@ class Infant():
         (x,y,z) = target_distr[0].index(sampled_points[0]),target_distr[1].index(sampled_points[1]),target_distr[2].index(sampled_points[2])
         target_pos = self.drange[1][x],self.drange[1][y],self.drange[1][z]
         
-        # Determine the values for all the nodes in the agent's arm network by  imaging
-        nodes=self.imaging(target_pos)
+        # Determine the values for all the nodes in the agent's arm network by inference
+        nodes=self.infer_nodes(target_pos)
         
         # Update beliefs in the network
         self.update_hparams([n for n in self.anet.nodes],nodes)
@@ -87,12 +90,34 @@ class Infant():
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
     
-    def imaging(self,target):
+    def infer_nodes(self,target):
+        angles=inverse_approx(target,self.rArm.arm,angles=self.rArm.angles)
+        shx,shy,shz,elx=self.rArm.angle_to_activation(angles)
+        nodes=self.imaging([shx,shy,shz,elx])
+        return nodes
+    
+    def imaging(self,axes):
         '''
-        @param target: the target position
+        @param axes: the activations for the axis nodes that have been pre-calculated
         @type target: list[float]
         '''
-        pass
+        worlds=self.get_worlds()
+          
+        return nodes
+    
+    def get_worlds(self):
+        labels=[l for l in self.anet.nodes]
+        nworlds=pow(len(self.anet.nodes['shx'].values),len(labels))
+        vals=[self.anet.nodes['shx'].values for node in labels]
+        values=list(itertools.product(*vals))
+        
+        worlds=[]
+        for wn in tqdm(range(nworlds)):
+            #determine world i's value set, and make the world
+            v=list(values[0])
+            worlds.append(World(self.anet,labels,v))
+            values=values[1:]
+        return worlds
     
     def update_hparams(self,labels,values):
         '''

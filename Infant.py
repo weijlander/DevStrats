@@ -8,13 +8,13 @@ Created on Fri Jun 22 16:04:34 2018
 import numpy as np
 import scipy.stats as stats
 import itertools
+import tqdm
 from ArmModel import ArmModel
 from t_distr import t_distr
 from unify_muscles import unify_muscles
 from worlds import World
 from move_arm import *
 from ArmNet import *
-from tqdm import tqdm
 
 class Infant():
     def __init__(self, name='Benjamin', drange=([-30,30],np.arange(-30,30.01,0.1)),card=3):
@@ -26,7 +26,7 @@ class Infant():
         self.rArm = ArmModel(limits=self.al)
         self.anet = armNet(name=name,card=card)
         self.drange = drange
-        self.kbase = [[self.anet.nodes[n].value for n in self.anet.nodes]]
+        self.worlds=[]
     
     def reach(self,target):
         '''
@@ -34,21 +34,25 @@ class Infant():
         @type target: tuple(list[x,y,z],float)
         '''
         # Determine the target position that the agent sees (this can differ from the actual target centre)
-        target_distr = t_distr(target,self.drange)
+        target_distr = t_distr([target],self.drange)
         sampled_points = np.ndarray.tolist(np.amax(target_distr,axis=1))
         (x,y,z) = target_distr[0].index(sampled_points[0]),target_distr[1].index(sampled_points[1]),target_distr[2].index(sampled_points[2])
         target_pos = self.drange[1][x],self.drange[1][y],self.drange[1][z]
         
         # Determine the values for all the nodes in the agent's arm network by inference
-        nodes=self.infer_nodes(target_pos)
+        #nodes=self.infer_nodes(target_pos)
+        nodes=[0.5 for node in self.anet.nodes]
         
         # Update beliefs in the network
         self.update_hparams([n for n in self.anet.nodes],nodes)
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
-        pass
+        for worldset in tqdm.tqdm(self.worlds,desc="Updating worlds: "):
+            for world in worldset:
+                world.update_world(self.anet)
+            
     
-    def motor_babbling(self,nb=1000,type='gaussian'):
+    def motor_babbling(self,nb=1000,type='gaussian',width=0.5):
         '''
         build a knowledge base for the probability distributions over network's nodes
         @param nb: the number of random movements
@@ -56,16 +60,16 @@ class Infant():
         @param type: the type of distributions from which the leaf nodes in the network will be sampled: 'gaussian' or 'uniform', defaults to gaussian
         @type type: string
         '''
-        for cycle in range(nb):
+        for cycle in tqdm.tqdm(range(nb),desc='Motor babbling: '):
             values=[]
             # sample random muscle activations based on the babbling type
             for muscle in self.anet.muscles:
                 # sample a random muscle activation and clip
-                ranm=np.random.normal(loc=0.5,scale=0.25)
+                ranm=np.random.normal(loc=0.5,scale=width)
                 ranm=min(max(ranm,0),1)
                 values.append(ranm)
             # sample a random cc and clip
-            rancc = np.random.normal(loc=0.5,scale=0.25)
+            rancc = np.random.normal(loc=0.5,scale=width)
             rancc=min(max(rancc,0),1)
             values.append(rancc)
             
@@ -85,10 +89,10 @@ class Infant():
             for i,n in enumerate (self.anet.nodes):
                 b=self.anet.nodes[n].get_bin(nodes[i])
                 nodes[i]=b
-            self.kbase.append(nodes)
             self.update_hparams([n for n in self.anet.nodes],nodes)
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
+        self.worlds=self.get_worlds()
     
     def infer_nodes(self,target):
         angles=inverse_approx(target,self.rArm.arm,angles=self.rArm.angles)
@@ -101,22 +105,23 @@ class Infant():
         @param axes: the activations for the axis nodes that have been pre-calculated
         @type target: list[float]
         '''
-        worlds=self.get_worlds()
+        
           
         return nodes
     
     def get_worlds(self):
         labels=[l for l in self.anet.nodes]
-        nworlds=pow(len(self.anet.nodes['shx'].values),len(labels))
-        vals=[self.anet.nodes['shx'].values for node in labels]
+        subnets=[['shx','shx_ag','shx_ant','CC'],['shy','shy_ag','shy_ant','CC'],['shz','shz_ag','shz_ant','CC'],['elx','elx_ag','elx_ant','CC']]
+        nworlds=pow(len(self.anet.nodes['shx'].values),len(subnets[0]))
+        vals=[self.anet.nodes['shx'].values for node in subnets[0]]
         values=list(itertools.product(*vals))
         
         worlds=[]
-        for wn in tqdm(range(nworlds)):
+        for wn in tqdm.tqdm(range(nworlds),desc="Building worlds: "):
             #determine world i's value set, and make the world
-            v=list(values[0])
-            worlds.append(World(self.anet,labels,v))
-            values=values[1:]
+            v=list(values[wn])
+            d_sep_subnets = [World(self.anet,labs,v) for labs in subnets]
+            worlds.append(d_sep_subnets)
         return worlds
     
     def update_hparams(self,labels,values):

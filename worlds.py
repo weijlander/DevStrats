@@ -20,10 +20,14 @@ class World:
         '''
         self.added_mass+=mass
     
+    def update_world(self,network):
+        self.network=network
+        self.probmass=self.get_probability_mass(self.labels,self.values)
+    
     def get_probability_mass(self,labels,values):
         '''
         Get the probability mass for this world
-        NOTE: THIS CURRENTLY ONLY WORKS FOR D-SEPARATED SUBNETWORK WORLDS
+        NOTE: THIS CURRENTLY ONLY WORKS PROPERLY FOR D-SEPARATED SUBNETWORK WORLDS, IT WON'T THROW ERRORS BUT IT SHOULDN'T BE USED FOR FULL-NETWORK OPERATIONS
         @param labels: the labels for all the values that are known
         @type labels: list[string]
         @param values: the values for each node indicated in labels. These parameters' orders match.
@@ -31,7 +35,7 @@ class World:
         '''
         axis=labels[0]
         hp=self.network.nodes[axis+'_ant'].hparam
-        pd=self.network.nodes[axis+'_ant'].hp_to_pd(self.network.nodes[axis+'_ag'].collapse_hp(labels))
+        pd=self.network.nodes[axis+'_ant'].hp_to_pd(self.network.nodes[axis+'_ant'].collapse_hp(labels))
         ind=[]
         for label,value in zip(labels,values):
             if label in hp[2]:

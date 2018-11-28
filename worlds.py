@@ -84,7 +84,7 @@ class World:
         '''
         Determine how this world's probability mass should be spread to given other worlds
         This function is hideous, but it works
-        @param others: The surviving worlds that willr eceive some probability mass. 
+        @param others: The surviving worlds that will receive some probability mass. 
                        These need not be pre-pruned to contain only worlds that receive mass from this world.
         @type others: list[World]
         '''

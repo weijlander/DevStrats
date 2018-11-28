@@ -28,27 +28,28 @@ class Infant():
         self.drange = drange
         self.worlds=[]
     
-    def reach(self,target):
+    def reach(self,target,cc):
         '''
         @param target: the target position in 3d and its width
         @type target: tuple(list[x,y,z],float)
+        @param cc: the given coactivation coefficient
+        @type cc: float
         '''
         # Determine the target position that the agent sees (this can differ from the actual target centre)
         target_distr = t_distr([target],self.drange)
         sampled_points = np.ndarray.tolist(np.amax(target_distr,axis=1))
         (x,y,z) = target_distr[0].index(sampled_points[0]),target_distr[1].index(sampled_points[1]),target_distr[2].index(sampled_points[2])
-        target_pos = self.drange[1][x],self.drange[1][y],self.drange[1][z]
+        target_pos = (self.drange[1][x],self.drange[1][y],self.drange[1][z])
         
         # Determine the values for all the nodes in the agent's arm network by inference
-        #nodes=self.infer_nodes(target_pos)
-        nodes=[0.5 for node in self.anet.nodes]
+        nodes=self.infer_nodes(target_pos,cc)
         
         # Update beliefs in the network
         self.update_hparams([n for n in self.anet.nodes],nodes)
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
-        for worldset in tqdm.tqdm(self.worlds,desc="Updating worlds: "):
-            for world in worldset:
+        for subnet in tqdm.tqdm(self.worlds,desc="Updating worlds: "):
+            for world in subnet:
                 world.update_world(self.anet)
             
     
@@ -92,22 +93,79 @@ class Infant():
             self.update_hparams([n for n in self.anet.nodes],nodes)
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
-        self.worlds=self.get_worlds()
+        self.worlds=np.ndarray.tolist(np.transpose(self.get_worlds()))
     
-    def infer_nodes(self,target):
+    def infer_nodes(self,target,cc):
+        '''
+        Infer the most probable values for the network's nodes given the target and the predecided cc
+        @param target: the target to reach toward
+        @type target: tuple(list[x,y,z],float)
+        @param cc: the coactivation coefficient
+        @type cc: float
+        '''
         angles=inverse_approx(target,self.rArm.arm,angles=self.rArm.angles)
-        shx,shy,shz,elx=self.rArm.angle_to_activation(angles)
-        nodes=self.imaging([shx,shy,shz,elx])
-        return nodes
-    
-    def imaging(self,axes):
-        '''
-        @param axes: the activations for the axis nodes that have been pre-calculated
-        @type target: list[float]
-        '''
+        # TODO: THE BELOW CODE MAY NOT RESTRICT OUTPUT TO VALUES THAT ARE KNOWN TO THE AXIS NODES
+        axes=self.rArm.angle_to_activation(angles)
+        nodes=[[],[]]
+        for i,axis in enumerate(self.worlds):
+            after_cc = self.shift_mass(axis,['shx','shy','shz','elx'][i],cc)
+            
+            ax=axes[i]
+            after_axis = self.shift_mass(after_cc,'cc',ax)
+            
+            ag = self.decide_value(after_axis,['shx','shy','shz','elx'][i]+'ag')
+            after_ag = self.shift_mass(after_axis,['shx','shy','shz','elx'][i]+'ag',ag)
+            
+            # this might not be fully necessary! the remaining worlds now should only be the 10 different values of ant, from which we can just pick the best
+            ant = self.decide_value(after_ag,['shx','shy','shz','elx'][i]+'ant')
+            after_ant = self.shift_mass(after_ag,['shx','shy','shz','elx'][i]+'ant',ant)
+            
+            # add the nodes to what we know
+            nodes[0].extend([after_ant[0].labels])
+            nodes[1].extend([after_ant[0].values])
         
-          
-        return nodes
+        solution = {lab:nodes[1][i] for i,lab in enumerate(nodes[0])}
+        values=[solution[l] for l in solution]
+            
+        return values
+    
+    def decide_value(self,worlds,label):
+        '''
+        Decide the value to take for the variable associated with given label, based on the worlds we have remaining
+        TODO: currently just takes the max, perhaps perform some simulated annealing instead
+        @param worlds: the remaining worlds to decide the best subset from
+        @type worlds: list[World]
+        @param label: the label for the variable that we're going to decide on now
+        @type label: String
+        '''
+        ordered_list=[w.probmass+w.added_mass for w in worlds]
+        max_i=ordered_list.index(np.amax(ordered_list))
+        vals,labs=(worlds[max_i].values,worlds[max_i].labels)
+        return vals[labs.index(label)]
+    
+    def shift_mass(self,worlds,label,value):
+        '''
+        Shift the probability mass from all worlds that don't satisfy node(label)==value to all worlds that do satisfy this condition
+        @param worlds: the worlds that we still have on consideration
+        @type worlds: list[World]
+        @param label: the label of the variable that we now image over
+        @type label: string
+        @param value: the value of the variable that we now image over
+        @type value: float
+        '''
+        remaining = []
+        eliminated = []
+        for world in worlds:
+            if world.values[world.labels.index(label)]==value:
+                remaining.append(world)
+            else:
+                eliminated.append(world)
+        added_masses=np.ndarray.tolist(np.zeros(np.shape(remaining)))
+        for elim in eliminated:
+            added_masses=np.ndarray.tolist(elim.spread_probability_mass(remaining),added_masses)
+        for i,rem in enumerate(remaining):
+            rem.added_mass+=added_masses[i]
+        return remaining
     
     def get_worlds(self):
         labels=[l for l in self.anet.nodes]

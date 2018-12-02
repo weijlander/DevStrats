@@ -9,6 +9,7 @@ import numpy as np
 import scipy.stats as stats
 import itertools
 import tqdm
+import math
 from ArmModel import ArmModel
 from t_distr import t_distr
 from unify_muscles import unify_muscles
@@ -42,16 +43,20 @@ class Infant():
         target_pos = (self.drange[1][x],self.drange[1][y],self.drange[1][z])
         
         # Determine the values for all the nodes in the agent's arm network by inference
-        nodes=self.infer_nodes(target_pos,cc)
+        nodes,goal_axes=self.infer_nodes(target_pos,cc)
         
         # Update beliefs in the network
         self.update_hparams([n for n in self.anet.nodes],nodes)
         for n in self.anet.nodes:
             self.anet.nodes[n].update_pd()
-        for subnet in tqdm.tqdm(self.worlds,desc="Updating worlds: "):
+        for subnet in self.worlds:
             for world in subnet:
                 world.update_world(self.anet)
-            
+        
+        result=self.rArm.move(nodes[4:-1],cc)
+        end_eff=result[0]
+        axes=end_eff[1]
+        return (end_eff,goal_axes,axes)
     
     def motor_babbling(self,nb=1000,type='gaussian',width=0.5):
         '''
@@ -61,7 +66,8 @@ class Infant():
         @param type: the type of distributions from which the leaf nodes in the network will be sampled: 'gaussian' or 'uniform', defaults to gaussian
         @type type: string
         '''
-        for cycle in tqdm.tqdm(range(nb),desc='Motor babbling: '):
+        #for cycle in tqdm.tqdm(range(nb),desc='Motor babbling:'):
+        for cycle in range(nb):
             values=[]
             # sample random muscle activations based on the babbling type
             for muscle in self.anet.muscles:
@@ -70,7 +76,7 @@ class Infant():
                 ranm=min(max(ranm,0),1)
                 values.append(ranm)
             # sample a random cc and clip
-            rancc = np.random.normal(loc=0.5,scale=width)
+            rancc = np.random.normal(loc=0.2,scale=width)
             rancc=min(max(rancc,0),1)
             values.append(rancc)
             
@@ -103,31 +109,35 @@ class Infant():
         @param cc: the coactivation coefficient
         @type cc: float
         '''
-        angles=inverse_approx(target,self.rArm.arm,angles=self.rArm.angles)
-        # TODO: THE BELOW CODE MAY NOT RESTRICT OUTPUT TO VALUES THAT ARE KNOWN TO THE AXIS NODES
+        angles=inverse_approx(target,self.rArm.arm,angles=self.rArm.angles)[0]
         axes=self.rArm.angle_to_activation(angles)
+        
+        cc=self.anet.nodes['CC'].get_bin(cc)
+        fixed_axes=[self.anet.nodes[a].get_bin(axes[i]) for i,a in enumerate(['shx','shy','shz','elx'])]
+        
         nodes=[[],[]]
         for i,axis in enumerate(self.worlds):
-            after_cc = self.shift_mass(axis,['shx','shy','shz','elx'][i],cc)
+            after_cc = self.shift_mass(axis,'CC',cc)
             
-            ax=axes[i]
-            after_axis = self.shift_mass(after_cc,'cc',ax)
+            ax=fixed_axes[i]
+            after_axis = self.shift_mass(after_cc,['shx','shy','shz','elx'][i],ax)
             
-            ag = self.decide_value(after_axis,['shx','shy','shz','elx'][i]+'ag')
-            after_ag = self.shift_mass(after_axis,['shx','shy','shz','elx'][i]+'ag',ag)
+            ag = self.decide_value(after_axis,['shx','shy','shz','elx'][i]+'_ag')
+            after_ag = self.shift_mass(after_axis,['shx','shy','shz','elx'][i]+'_ag',ag)
             
             # this might not be fully necessary! the remaining worlds now should only be the 10 different values of ant, from which we can just pick the best
-            ant = self.decide_value(after_ag,['shx','shy','shz','elx'][i]+'ant')
-            after_ant = self.shift_mass(after_ag,['shx','shy','shz','elx'][i]+'ant',ant)
+            ant = self.decide_value(after_ag,['shx','shy','shz','elx'][i]+'_ant')
+            after_ant = self.shift_mass(after_ag,['shx','shy','shz','elx'][i]+'_ant',ant)
             
             # add the nodes to what we know
             nodes[0].extend([after_ant[0].labels])
             nodes[1].extend([after_ant[0].values])
         
-        solution = {lab:nodes[1][i] for i,lab in enumerate(nodes[0])}
-        values=[solution[l] for l in solution]
+        # turn the node labels and values into a dictionary to remove duplicates (CC is the cuplrit here)
+        solution = {lab:nodes[1][i][j] for i,node in enumerate(nodes[0]) for j,lab in enumerate(node)}
+        values=[solution[l] for l in self.anet.nodes]
             
-        return values
+        return (values,fixed_axes)
     
     def decide_value(self,worlds,label):
         '''
@@ -162,7 +172,7 @@ class Infant():
                 eliminated.append(world)
         added_masses=np.ndarray.tolist(np.zeros(np.shape(remaining)))
         for elim in eliminated:
-            added_masses=np.ndarray.tolist(elim.spread_probability_mass(remaining),added_masses)
+            added_masses=np.ndarray.tolist(np.add(elim.spread_probability_mass(remaining),added_masses))
         for i,rem in enumerate(remaining):
             rem.added_mass+=added_masses[i]
         return remaining
@@ -175,7 +185,7 @@ class Infant():
         values=list(itertools.product(*vals))
         
         worlds=[]
-        for wn in tqdm.tqdm(range(nworlds),desc="Building worlds: "):
+        for wn in range(nworlds):
             #determine world i's value set, and make the world
             v=list(values[wn])
             d_sep_subnets = [World(self.anet,labs,v) for labs in subnets]
@@ -191,3 +201,24 @@ class Infant():
         '''
         for n in self.anet.nodes:
             self.anet.nodes[n].update_hp(labels,values,self.anet.nodes)
+            
+    def get_testtargets(self,n):
+        '''
+        return a list of n targets that are just out of reach.
+        Note: based on von Hofsten (1984), the targets are generated close to z-values of 0, in line with the simulated infant's eyeheight.
+        '''
+        testset=[]
+        while len(testset)<n:
+            a = -30
+            b = 30
+            x = (b-a)*np.random.uniform()+a
+            a = 10
+            b = 25
+            y = (b-a)*np.random.normal(loc=0.5,scale=0.2)+a
+            distance = float(int(math.sqrt(math.pow(x,2)+math.pow(y,2))))
+            z=np.random.normal(loc=0.0,scale=0.5)
+            if distance<25 and distance>21 and y>12:
+                testset.append(([x,y,z],3))
+            
+        return testset
+        

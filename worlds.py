@@ -2,7 +2,7 @@
 """
 Created on Fri Nov 16 15:03:16 2018
 
-@author: weijl
+@author: Wouter Eijlander
 """
 
 class World:
@@ -101,9 +101,9 @@ class World:
         # goodness gracious this is specific code
         # get the probability distirbution marginalized over the known variables
         axis=self.labels[0]
-        hp=self.network.nodes[axis+'ant'].hparam
+        hp=self.network.nodes[axis+'_ant'].hparam
         hp=(hp[0],hp[1],[label for label in hp[2] if label not in self.known],hp[3])
-        pd=self.network.nodes[axis+'ant'].hp_to_pd(self.network.nodes[axis+'ant'].collapse_hp([label for label in self.labels if label not in self.known]))
+        pd=self.network.nodes[axis+'_ant'].hp_to_pd(self.network.nodes[axis+'_ant'].collapse_hp([label for label in self.labels if label not in self.known]))
         
         for index,other in enumerate(others):
             if similarities[index]==maxsim:

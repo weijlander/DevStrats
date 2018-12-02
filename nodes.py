@@ -2,7 +2,7 @@
 """
 Created on Mon Oct  8 11:14:51 2018
 
-@author: Woutere Eijlander
+@author: Wouter Eijlander
 """
 
 import numpy as np

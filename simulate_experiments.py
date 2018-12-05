@@ -12,17 +12,16 @@ from saving import savedata
 import math
 
 
-n_infants = 1
-cardinality = 7
+n_infants = 10
+cardinality = 5
 n_babbles=5000
-filename="data//testdata"+str(cardinality)+"values"
+filename="data//results//"+str(cardinality)+"values"
 
-#age_weeks=[1,4,7,10,13,16,19]
 #n_testing_targets=[144 for age in age_weeks]
 age_weeks=[1,4,7,10,13,16,19]
-n_testing_targets=[10 for age in age_weeks]
+n_testing_targets=[144 for age in age_weeks]
 n_learning_reaches=[1000 for age in age_weeks]
-cc_track=[0.2,0.2,0.8,0.6,0.3,0.2,0.2]
+cc_track=[0.0,0.0,0.8,0.6,0.3,0.2,0.2]
 
 threshold_distance=10
 
@@ -38,7 +37,7 @@ try:
     for inf_n in range(n_infants):
         # initialize a simulated infant, and the lists for monitored result statistics
         baby=Infant.Infant(card=cardinality)
-        baby.motor_babbling(nb=n_babbles)
+        baby.motor_babbling(nb=n_babbles,max_cc=0.0)
         
         extended_reaches=[]
         reach_lengths=[]
@@ -48,7 +47,7 @@ try:
         
         for cycle in range(len(n_learning_reaches)):
             # perform a learning cycle and a test cycle
-            baby.motor_babbling(nb=n_learning_reaches[cycle])
+            baby.motor_babbling(nb=n_learning_reaches[cycle],max_cc=cc_track[cycle])
             test_targets=baby.get_testtargets(n_testing_targets[cycle])
             ex_reaches=0
             

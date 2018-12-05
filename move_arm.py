@@ -59,7 +59,7 @@ def calc_arm(arm,shoulder,elbow):
     # calculate end-effector position
     e1 = homog_transform(l1[0],l1[1],l1[2],0,0,0,rx1,ry1,rz1) # Perform the rotation to the upper arm
     #e2 = homog_transform(d2[0],d2[1],d2[2],e1[0],e1[1],e1[2],0,0,rz1) # determine the new forearm position based on upper arm translation and rotation
-    e3 = homog_transform(d2[0],d2[1],d2[2],0,0,0,rx1*abs(rx2-140),ry1,rz1) # perform forearm rotation
+    e3 = homog_transform(d2[0],d2[1],d2[2],0,0,0,rx1*rx2,ry1,rz1)#abs(rx2-140),ry1,rz1) # perform forearm rotation
     return [e1,np.add(e3,e1)]
 
 def clamp_degrees(angles,limits=[[-20,130],[-20,70],[-70,60],[0,140],[0,0],[0,0]]):

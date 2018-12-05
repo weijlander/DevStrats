@@ -58,7 +58,7 @@ class Infant():
         axes=end_eff[1]
         return (end_eff,goal_axes,axes)
     
-    def motor_babbling(self,nb=1000,type='gaussian',width=0.5):
+    def motor_babbling(self,nb=1000,type='gaussian',width=0.5,max_cc=0.0):
         '''
         build a knowledge base for the probability distributions over network's nodes
         @param nb: the number of random movements
@@ -73,7 +73,7 @@ class Infant():
             for muscle in self.anet.muscles:
                 # sample a random muscle activation and clip
                 ranm=np.random.normal(loc=0.5,scale=width)
-                ranm=min(max(ranm,0),1)
+                ranm=min(max(ranm,0),max_cc)
                 values.append(ranm)
             # sample a random cc and clip
             rancc = np.random.normal(loc=0.2,scale=width)
@@ -139,7 +139,7 @@ class Infant():
             
         return (values,fixed_axes)
     
-    def decide_value(self,worlds,label):
+    def decide_value(self,worlds,label,mode='softmax'):
         '''
         Decide the value to take for the variable associated with given label, based on the worlds we have remaining
         TODO: currently just takes the max, perhaps perform some simulated annealing instead
@@ -148,10 +148,37 @@ class Infant():
         @param label: the label for the variable that we're going to decide on now
         @type label: String
         '''
-        ordered_list=[w.probmass+w.added_mass for w in worlds]
-        max_i=ordered_list.index(np.amax(ordered_list))
-        vals,labs=(worlds[max_i].values,worlds[max_i].labels)
+        
+        if mode=='max':
+            ordered_list=[w.probmass+w.added_mass for w in worlds]
+            chosen_i=ordered_list.index(np.amax(ordered_list))
+        elif mode=='softmax':
+            ordered_list=[w.probmass+w.added_mass for w in worlds]
+            chosen_i=self.softmax(ordered_list)
+        elif mode=='entropy':
+            chosen_i=self.choose_by_entropy(worlds,label)
+        
+        vals,labs=(worlds[chosen_i].values,worlds[chosen_i].labels)
         return vals[labs.index(label)]
+    
+    def choose_by_entropy(self,worlds,label):
+        '''
+        this one is a doozy: from the current worlds, choose the most entropic value for the variable with the given label 
+        '''
+        ordered_list=[w.probmass+w.added_mass for w in worlds]
+        chosen_i=ordered_list.index(np.amax(ordered_list))
+        for world in worlds:
+            index=chosen_i
+        return index
+    
+    def softmax(self,values):
+        # sample a value from the given probdistr by their probability
+        chosen_value=np.random.choice(values,p=values)
+        # and if multiple instances of that value exit, then get all indices...
+        indices=[i for i,x in enumerate(values) if x==chosen_value]
+        # and choose one at random, since they're all equally likely
+        index = indices[round(np.random.uniform(low=0,high=len(indices)-1))]
+        return index
     
     def shift_mass(self,worlds,label,value):
         '''
